@@ -1,79 +1,122 @@
 import 'package:dio/dio.dart';
-import 'package:tec/common/response_validator.dart';
+import 'package:tec/data/constant.dart';
 import 'package:tec/data/model/post_model.dart';
+
+import '../../common/http_error_handler.dart';
 
 abstract class IPostSrc {
   Future<void> addPost({required int userId, String content = ''}) async {
     addPost(userId: userId);
   }
-  Future<void> editPost({required int userId, required int postId, String content = ''}) async {
+
+  Future<void> editPost({
+    required int userId,
+    required int postId,
+    String content = '',
+  }) async {
     editPost(userId: userId, postId: postId);
   }
-  Future<void> deletePost({required int userId, required int postId,}) async {
+
+  Future<void> deletePost({
+    required int userId,
+    required int postId,
+  }) async {
     editPost(userId: userId, postId: postId);
   }
-  Future<void> likeAndDislike({required int userId, required int postId,}) async {
+
+  Future<void> likeAndDislike({
+    required int userId,
+    required int postId,
+  }) async {
     likeAndDislike(userId: userId, postId: postId);
   }
-  Future<List<PostModel>> getPosts({required int userId, bool random = true,}) async {
-    return getPosts(userId: userId);
+
+  Future<List<PostModel>> getPostsList({
+    required int userId,
+    bool random = true,
+  }) async {
+    return getPostsList(userId: userId);
   }
-  Future<PostModel> getPost({required int userId, required int postId,}) async {
-    return getPost(userId: userId, postId: postId);
+
+  Future<PostModel> getSinglePost({
+    required int userId,
+    required int postId,
+  }) async {
+    return getSinglePost(userId: userId, postId: postId);
   }
-  Future<void> postFileUpload({required int userId, required int postId,required List<String> file}) async {
-     getPost(userId: userId, postId: postId);
+
+  Future<void> postFileUpload({
+    required int userId,
+    required int postId,
+    required List<String> file,
+  }) async {
+    getSinglePost(userId: userId, postId: postId);
   }
-  Future<PostModel> postFileDelete({required int userId, required int fileId,}) async {
+
+  Future<PostModel> postFileDelete({
+    required int userId,
+    required int fileId,
+  }) async {
     return postFileDelete(userId: userId, fileId: fileId);
   }
-  Future<PostModel> getFiles({required int userId, required int postId,}) async {
+
+  Future<PostModel> getFiles({
+    required int userId,
+    required int postId,
+  }) async {
     return getFiles(userId: userId, postId: postId);
   }
 }
 
-class RemotePostSrc with HttpResponseValidator implements IPostSrc {
-
+class RemotePostSrc implements IPostSrc {
   final Dio httpClient;
   RemotePostSrc(this.httpClient);
-
-
 
   @override
   Future<void> addPost({required int userId, String content = ''}) async {
     final response = await httpClient.post(
-      'https://maktabkhoneh-api.sasansafari.com/api/v1/post/add',
+      RemoteConstants.postAdd,
       data: {
-        'user_id': userId,
-        'content' : content,
+        RemoteKey.userId: userId,
+        RemoteKey.content: content,
       },
     );
-    validateResponse(response);
+    HttpResponseHandler(
+      response: response,
+    ).validate();
   }
 
   @override
-  Future<void> deletePost({required int userId, required int postId}) async{
+  Future<void> deletePost({required int userId, required int postId}) async {
     final response = await httpClient.post(
-      'https://maktabkhoneh-api.sasansafari.com/api/v1/post/delete',
+      RemoteConstants.deletePost,
       data: {
-        'user_id': userId,
-        'post_id': postId,
+        RemoteKey.userId: userId,
+        RemoteKey.postId: postId,
       },
     );
-    validateResponse(response);
+    HttpResponseHandler(
+      response: response,
+    ).validate();
   }
 
   @override
-  Future<void> editPost({required int userId, required int postId, String content = ''}) async{
+  Future<void> editPost({
+    required int userId,
+    required int postId,
+    String content = '',
+  }) async {
     final response = await httpClient.post(
-      'https://maktabkhoneh-api.sasansafari.com/api/v1/post/edit',
+      RemoteConstants.editPost,
       data: {
-        'user_id': userId,
-        'post_id': postId,
-        'content' : content,
+        RemoteKey.userId: userId,
+        RemoteKey.postId: postId,
+        RemoteKey.content: content,
       },
     );
-    validateResponse(response);
+    HttpResponseHandler(
+      response: response,
+    ).validate();
   }
 
   @override
@@ -83,63 +126,105 @@ class RemotePostSrc with HttpResponseValidator implements IPostSrc {
   }
 
   @override
-  Future<PostModel> getPost({required int userId, required int postId}) async{
+  Future<PostModel> getSinglePost({
+    required int userId,
+    required int postId,
+  }) async {
+    PostModel postModel = PostModel.empty();
+
     final response = await httpClient.get(
-      'https://maktabkhoneh-api.sasansafari.com/api/v1/post/getpost?user_id=19&post_id=',
+      RemoteConstants.getSinglePost,
+      queryParameters: {'user_id': userId, 'post_id': postId},
     );
-    validateResponse(response);
-    return PostModel.fromMapJson(response.data);
+
+    HttpResponseHandler(
+      response: response,
+      on200: () {
+        postModel = PostModel.fromMapJson(response.data);
+      },
+    ).validate();
+    return postModel;
   }
 
   @override
-  Future<List<PostModel>> getPosts({required int userId, bool random = true}) async{
+  Future<List<PostModel>> getPostsList({
+    required int userId,
+    bool random = true,
+  }) async {
+    List<PostModel> postModelList = [];
+
     final response = await httpClient.get(
-      'https://maktabkhoneh-api.sasansafari.com/api/v1/post/getposts?user_id=$userId&random=$random',
+      RemoteConstants.getPostList,
+      queryParameters: {'user_id': userId, 'random': random},
     );
-    validateResponse(response);
-    List<PostModel> posts = [];
-    for (var post in (response.data as List)) {
-      posts.add(PostModel.fromMapJson(post));
-    }
-    return posts;
+    HttpResponseHandler(
+      response: response,
+      on200: () {
+        for (var post in (response.data as List)) {
+          postModelList.add(PostModel.fromMapJson(post));
+        }
+      },
+    ).validate();
+
+    return postModelList;
   }
 
   @override
-  Future<void> likeAndDislike({required int userId, required int postId}) async{
+  Future<void> likeAndDislike({
+    required int userId,
+    required int postId,
+  }) async {
     final response = await httpClient.post(
-      'https://maktabkhoneh-api.sasansafari.com/api/v1/post/like',
+      RemoteConstants.likePost,
       data: {
-        'user_id': userId,
-        'post_id': postId,
+        RemoteKey.userId: userId,
+        RemoteKey.postId: postId,
       },
     );
-    validateResponse(response);
+    HttpResponseHandler(
+      response: response,
+    ).validate();
   }
 
   @override
-  Future<PostModel> postFileDelete({required int userId, required int fileId}) async{
+  Future<PostModel> postFileDelete({
+    required int userId,
+    required int fileId,
+  }) async {
+    PostModel postModel = PostModel.empty();
+
     final response = await httpClient.post(
-      'https://maktabkhoneh-api.sasansafari.com/api/v1/post/deletefile',
+      RemoteConstants.deleteFile,
       data: {
-        'user_id': userId,
-        'file_id': fileId,
+        RemoteKey.userId: userId,
+        RemoteKey.fileId: fileId,
       },
     );
-    validateResponse(response);
-    return PostModel.fromMapJson(response.data);
+    HttpResponseHandler(
+      response: response,
+      on200: () {
+        postModel = PostModel.fromMapJson(response.data);
+      },
+    ).validate();
+    return postModel;
   }
 
   @override
-  Future<void> postFileUpload({required int userId, required int postId, required List<String> file}) async{
+  Future<void> postFileUpload({
+    required int userId,
+    required int postId,
+    required List<String> file,
+  }) async {
     final response = await httpClient.post(
-      'https://maktabkhoneh-api.sasansafari.com/api/v1/post/fileupload',
+      RemoteConstants.uploadFile,
       data: {
-        'user_id': userId,
-        'post_id': postId,
-        'file': file,
+        RemoteKey.userId: userId,
+        RemoteKey.postId: postId,
+        RemoteKey.file: file,
       },
     );
-    validateResponse(response);
+    HttpResponseHandler(
+      response: response,
+    ).validate();
   }
 }
-

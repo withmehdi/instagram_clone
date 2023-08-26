@@ -2,8 +2,9 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/widgets.dart';
-import 'package:tec/common/http_error_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tec/common/http_error_handler.dart';
+import 'package:tec/data/constant.dart';
 
 abstract class IAuthSrc {
   Future<void> userLogin(
@@ -33,20 +34,25 @@ class AuthRemoteSrc implements IAuthSrc {
   Future<String> checkUserActivate(param) async {
     SharedPreferences preferences = await SharedPreferences.getInstance();
     String msg = '';
-    int? userId = preferences.getInt('user_id');
+    int? userId = preferences.getInt(RemoteKey.userId);
 
     try {
       final response = await http.post(
-        'https://maktabkhoneh-api.sasansafari.com/api/v1/auth/check_active',
+        RemoteConstants.userActivate,
         data: {
-          'user_id': userId,
+          RemoteKey.userId: userId,
         },
       );
-      httpErrorHandle(
-          response: response,
-          onSuccess: () {
-            msg = jsonDecode(response.data)['ms'];
-          });
+
+      HttpResponseHandler(
+        response: response,
+      ).validate();
+
+      // httpErrorHandle(
+      //     response: response,
+      //     onSuccess: () {
+      //       msg = jsonDecode(response.data)['ms'];
+      //     });
     } catch (e) {
       debugPrint('Error in Auth src check Activation :  ${e.toString()}');
     }
@@ -66,30 +72,30 @@ class AuthRemoteSrc implements IAuthSrc {
       // AuthModel auth = AuthModel(verifyToken: '', userId: 0);
       SharedPreferences preferences = await SharedPreferences.getInstance();
       final response = await http.post(
-        'https://maktabkhoneh-api.sasansafari.com/api/v1/auth/register',
+        RemoteConstants.register,
         data: {
-          'username': userName,
-          'password': password,
-          'email': email,
-          'fullName': fullName,
-          'phone': phone,
-          'userAvatar': userAvatar
+          RemoteKey.userName: userName,
+          RemoteKey.password: password,
+          RemoteKey.email: email,
+          RemoteKey.fullName: fullName,
+          RemoteKey.phone: phone,
+          RemoteKey.userAvatar: userAvatar
         },
       );
-      httpErrorHandle(
+      HttpResponseHandler(
         response: response,
-        onSuccess: () async {
+        on200: () async {
           //! as we dont use statemanager yet, we cant use model because in  login we need
           //! to add auth token to this object by copywith method
           //! so for now we just use sharedpreferences
 
-          String token = jsonDecode(response.data)['verify_token'];
-          int userId = jsonDecode(response.data)['user_id'];
-          await preferences.setInt('user_id', userId);
-          await preferences.setString('verify_token', token);
+          String token = jsonDecode(response.data)[RemoteKey.verifyToken];
+          int userId = jsonDecode(response.data)[RemoteKey.userId];
+          await preferences.setInt(RemoteKey.userId, userId);
+          await preferences.setString(RemoteKey.verifyToken, token);
           // auth = AuthModel.fromJson(response.data);
         },
-      );
+      ).validate();
     } catch (e) {
       debugPrint('Error in Auth src user register :  ${e.toString()}');
     }
@@ -98,17 +104,19 @@ class AuthRemoteSrc implements IAuthSrc {
   @override
   Future<void> resendActivation(param) async {
     SharedPreferences preferences = await SharedPreferences.getInstance();
-    int? userId = preferences.getInt('user_id');
-    String? token = preferences.getString('verify_token');
+    int? userId = preferences.getInt(RemoteKey.userId);
+    String? token = preferences.getString(RemoteKey.verifyToken);
     try {
       final response = await http.post(
-        'https://maktabkhoneh-api.sasansafari.com/api/v1/auth/resend_token',
+        RemoteConstants.resendActivation,
         data: {
-          'user_id': userId,
-          'verify_token': token,
+          RemoteKey.userId: userId,
+          RemoteKey.verifyToken: token,
         },
       );
-      httpErrorHandle(response: response, onSuccess: () {});
+      HttpResponseHandler(
+        response: response,
+      ).validate();
     } catch (e) {
       debugPrint('Error in Auth src resendActivation :  ${e.toString()}');
     }
@@ -117,18 +125,20 @@ class AuthRemoteSrc implements IAuthSrc {
   @override
   Future<void> userVerify(int activeToken) async {
     SharedPreferences preferences = await SharedPreferences.getInstance();
-    int? userId = preferences.getInt('user_id');
-    String? token = preferences.getString('verify_token');
+    int? userId = preferences.getInt(RemoteKey.userId);
+    String? token = preferences.getString(RemoteKey.verifyToken);
     try {
       final response = await http.post(
-        'https://maktabkhoneh-api.sasansafari.com/api/v1/auth/verify',
+        RemoteConstants.verify,
         data: {
-          'user_id': userId,
-          'verify_token': token,
-          'active_token': activeToken,
+          RemoteKey.userId: userId,
+          RemoteKey.verifyToken: token,
+          RemoteKey.activeToken: activeToken,
         },
       );
-      httpErrorHandle(response: response, onSuccess: () {});
+      HttpResponseHandler(
+        response: response,
+      ).validate();
     } catch (e) {
       debugPrint('Error in Auth src user verify :  ${e.toString()}');
     }
@@ -143,22 +153,21 @@ class AuthRemoteSrc implements IAuthSrc {
     try {
       SharedPreferences preferences = await SharedPreferences.getInstance();
       final response = await http.post(
-        'https://maktabkhoneh-api.sasansafari.com/api/v1/auth/login',
+        RemoteConstants.login,
         data: {
-          'username': userName,
-          'password': password,
-          'email': email,
+          RemoteKey.userName: userName,
+          RemoteKey.password: password,
+          RemoteKey.email: email,
         },
       );
-
-      httpErrorHandle(
+      HttpResponseHandler(
         response: response,
-        onSuccess: () async {
-          String token = jsonDecode(response.data)['auth_token'];
+        on200: () async {
+          String token = jsonDecode(response.data)[RemoteKey.authToken];
 
-          await preferences.setString('auth_token', token);
+          await preferences.setString(RemoteKey.authToken, token);
         },
-      );
+      ).validate();
     } catch (e) {
       debugPrint('Error in Auth src user login :  ${e.toString()}');
     }

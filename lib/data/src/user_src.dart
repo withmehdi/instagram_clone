@@ -1,21 +1,29 @@
 import 'package:dio/dio.dart';
-import 'package:tec/common/response_validator.dart';
+import 'package:tec/data/constant.dart';
 import 'package:tec/data/model/user_model.dart';
 
+import '../../common/http_error_handler.dart';
+
 abstract class IUserSrc {
-  Future<void> editUser(UserModel userModel, String password) async =>
-      editUser(userModel, password);
-  Future<UserModel> getUser(
-          {required String userName, required int userId}) async =>
+  Future<void> editUser(UserModel userModel) async => editUser(userModel);
+
+  Future<UserModel> getUser({
+    required String userName,
+    required int userId,
+  }) async =>
       getUser(userName: userName, userId: userId);
+
   Future<void> deleteUser({required int userId}) async =>
       deleteUser(userId: userId);
-  Future<void> followOrUnfollowUser(
-          {required int userId, required int followerId}) async =>
-      followOrUnfollowUser(userId: userId, followerId: followerId);
+
+  Future<void> followUnfollow({
+    required int userId,
+    required int followerId,
+  }) async =>
+      followUnfollow(userId: userId, followerId: followerId);
 }
 
-class RemoteUserUrc with HttpResponseValidator implements IUserSrc {
+class RemoteUserUrc implements IUserSrc {
   final Dio httpClient;
 
   RemoteUserUrc(this.httpClient);
@@ -23,51 +31,64 @@ class RemoteUserUrc with HttpResponseValidator implements IUserSrc {
   @override
   Future<void> deleteUser({required int userId}) async {
     final response = await httpClient.post(
-      'https://maktabkhoneh-api.sasansafari.com/api/v1/user/delete',
+      RemoteConstants.deleteUser,
       data: {
-        'user_id': userId,
+        RemoteKey.userId: userId,
       },
     );
-    validateResponse(response);
+    HttpResponseHandler(
+      response: response,
+    ).validate();
   }
 
   @override
-  Future<void> editUser(UserModel userModel, String password) async {
+  Future<void> editUser(UserModel userModel) async {
     final response = await httpClient.post(
-      'https://maktabkhoneh-api.sasansafari.com/api/v1/user/update',
-      data: {
-        'user_id': userModel.userId,
-        'username': userModel.userName,
-        'password': password,
-        'full_name': userModel.fullName,
-        'email': userModel.email,
-        'phone': userModel.phone,
-        'user_avatar': userModel.userAvatar,
-      },
+      RemoteConstants.updateUser,
+      data: userModel.toJson(),
     );
-    validateResponse(response);
+    HttpResponseHandler(
+      response: response,
+    ).validate();
   }
 
   @override
-  Future<void> followOrUnfollowUser(
-      {required int userId, required int followerId}) async {
+  Future<void> followUnfollow({
+    required int userId,
+    required int followerId,
+  }) async {
     final response = await httpClient.post(
-      'https://maktabkhoneh-api.sasansafari.com/api/v1/user/follow',
+      RemoteConstants.followUser,
       data: {
-        'user_id': userId,
-        'follower_id': followerId,
+        RemoteKey.userId: userId,
+        RemoteKey.followerId: followerId,
       },
     );
-    validateResponse(response);
+    HttpResponseHandler(
+      response: response,
+    ).validate();
   }
 
   @override
-  Future<UserModel> getUser(
-      {required String userName, required int userId}) async {
+  Future<UserModel> getUser({
+    required String userName,
+    required int userId,
+  }) async {
+    UserModel userModel = UserModel.empty();
+
     final response = await httpClient.get(
-      'https://maktabkhoneh-api.sasansafari.com/api/v1/user/getuser?username=$userName&user_id=${userId.toString()}',
+      RemoteConstants.getUser,
+      queryParameters: {
+        RemoteKey.userName: userName,
+        RemoteKey.userId: userId.toString()
+      },
     );
-    validateResponse(response);
-    return UserModel.fromJson(response.data);
+    HttpResponseHandler(
+      response: response,
+      on200: () {
+        userModel = UserModel.fromJson(response.data);
+      },
+    ).validate();
+    return userModel;
   }
 }
